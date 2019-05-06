@@ -1,0 +1,84 @@
+https://codeby.net/threads/razbiraemsja-s-osmocom-bb.63421/#
+https://m.habr.com/ru/company/pentestit/blog/331406/
+
+apt-get update && apt-get install build-essential libtool libtalloc-dev shtool autoconf automake git-core pkg-config make gcc libpcsclite-dev -y
+apt update && apt install libmpfr-dev libmpc-dev libgmp-dev libgnutls28-dev libgnutlsxx28 texinfo -y
+apt-get install libgnutls28-dev libz-dev -y
+mkdir /opt/osmocom
+cd /opt/osmocom
+git clone git://git.osmocom.org/libosmocore.git
+cd libosmocore/
+autoreconf -i
+./configure
+make
+make install
+ldconfig -i
+cd /opt/osmocom
+mkdir gnu-arm-toolchain
+cd gnu-arm-toolchain
+mkdir build install src
+cd src/
+wget http://ftp.gnu.org/gnu/gcc/gcc-4.9.4/gcc-4.9.4.tar.bz2
+wget http://ftp.gnu.org/gnu/binutils/binutils-2.21.1a.tar.bz2
+wget ftp://sources.redhat.com/pub/newlib/newlib-1.19.0.tar.gz
+tar jxvf gcc-4.9.4.tar.bz2
+tar jxvf binutils-2.21.1a.tar.bz2
+tar xfvz newlib-1.19.0.tar.gz
+cd ../
+wget https://raw.githubusercontent.com/DrLafa/gnu-arm-toolchain-installer/master/gnu-arm-build.sh
+chmod +x gnu-arm-build.sh
+./gnu-arm-build.sh
+
+
+vi /etc/bash.bashrc
+
+add in the end
+
+export PATH=$PATH:/root/osmocom/gnu-arm-installer/install/bin
+export PATH=/opt/osmocom/gnu-arm-toolchain/install/bin:${PATH}
+
+
+cd ~/
+mkdir osmocombb
+cd osmocombb
+git clone git://git.osmocom.org/osmocom-bb.git master
+cd master/src
+
+
+==============
+cp ~/osmocombb/master/src/target/firmware/Makefile ~/osmocombb/master/src/target/firmware/Makefile.bak
+mcedit ~/osmocombb/master/src/target/firmware/Makefile
+
+# Uncomment this line if you want to enable Tx (Transmit) Support.
+CFLAGS += -DCONFIG_TX_ENABLE
+
+# Uncomment this line if you want to write to flash.
+CFLAGS += -DCONFIG_FLASH_WRITE
+
+# Uncomment this line if you want to write to flash, including the bootloader.
+CFLAGS += -DCONFIG_FLASH_WRITE_LOADER
+==============
+Flash cp2102
+https://sourceforge.net/projects/cp210x-program/files/cp210x-program-1.0.tar.gz/download
+tar -xvf cp210x-program-1.0.tar.gz
+sudo rmmod cp210x
+sudo ./cp210x-program
+sudo ./cp210x-program -f eeprom2.hex
+sudo ./cp210x-program -p -F eeprom.hex -w --set-baudrate 812500:FFE2,FFF4,1 --set-baudrate 406250:FFC5,FFE9,1 --set-baudrate 203125:FF8A,FFD3,1
+sudo ./cp210x-program
+cp ~/osmocombb/master/src/host/osmocon/osmocon.c ~/osmocombb/master/src/host/osmocon/osmocon.c.bak
+mcedit ~/osmocombb/master/src/host/osmocon/osmocon.c 
+line 65:
+#define I_HAVE_A_CP210x
+==============
+cd ~/osmocombb/master/src/
+make
+cd ~/osmocombb/master/src/host/osmocon/
+mkdir osmocon-link
+ln -s ~/osmocombb/master/src/host/osmocon/osmocon osmocon
+
+
+cd ~/osmocombb/master/src/target/firmware/board/compal_e88
+~/osmocombb/master/src/host/osmocon/osmocon -m c123xor -p /dev/ttyUSB0 hello_world.compalram.bin
+~/osmocombb/master/src/host/osmocon/osmocon -m c123xor -p /dev/ttyUSB0 -c hello_world.compalram.bin
+~/osmocombb/master/src/host/osmocon/osmocon -m c123xor -p /dev/ttyUSB0 -c layer1.highram.bin
